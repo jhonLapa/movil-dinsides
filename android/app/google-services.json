@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "298978320253",
+    "project_id": "courier-chat-demo",
+    "storage_bucket": "courier-chat-demo.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:298978320253:android:4d20008aaf7e45ef823614",
+        "android_client_info": {
+          "package_name": "com.example.courier_chat_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCZ2x53tH1QNHG12Bgxvdv3qHVh1zso8Bk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
