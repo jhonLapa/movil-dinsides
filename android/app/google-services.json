@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "298978320253",
-    "project_id": "courier-chat-demo",
-    "storage_bucket": "courier-chat-demo.firebasestorage.app"
+    "project_number": "177136918870",
+    "project_id": "dinsides-chat",
+    "storage_bucket": "dinsides-chat.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:298978320253:android:4d20008aaf7e45ef823614",
+        "mobilesdk_app_id": "1:177136918870:android:9efab5f0147804887c36f7",
         "android_client_info": {
-          "package_name": "com.example.courier_chat_app"
+          "package_name": "com.dinsides.chat"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCZ2x53tH1QNHG12Bgxvdv3qHVh1zso8Bk"
+          "current_key": "AIzaSyAyPlWMbu9TR_5XJ2McxkrDe78Rb7ohTuo"
         }
       ],
       "services": {

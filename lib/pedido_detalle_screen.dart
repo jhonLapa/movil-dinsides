@@ -6,7 +6,7 @@ import 'chat_screen.dart';
 class PedidoDetalleScreen extends StatefulWidget {
   final String idPedido;
   final String miIdActual;
-  final String miRolActual; // Ej: "motorizado", "cliente", "admin"
+  final String miRolActual; 
 
   const PedidoDetalleScreen({
     super.key,
@@ -22,7 +22,6 @@ class PedidoDetalleScreen extends StatefulWidget {
 class _PedidoDetalleScreenState extends State<PedidoDetalleScreen> {
   bool _isLoading = false;
 
-  // ⭐⭐ CAMBIO 1: Ahora la función recibe el "rolObjetivo" (con quién quiero hablar)
   Future<void> _abrirChat(String rolObjetivo) async {
     setState(() {
       _isLoading = true;
@@ -35,8 +34,6 @@ class _PedidoDetalleScreenState extends State<PedidoDetalleScreen> {
     );
 
     try {
-      // ⭐⭐ CAMBIO 2: Enviamos 'rol_objetivo' a tu PHP para que sepa qué chat buscar
-      // Si soy motorizado y pido 'cliente', el PHP debe buscar el chat del pedido entre motorizado y cliente.
       final url = Uri.parse(
           'https://test.dinsidescourier.com/buscar_o_crear_chat_por_pedido.php?id_pedido=${widget.idPedido}&rol_objetivo=$rolObjetivo');
 
@@ -90,7 +87,6 @@ class _PedidoDetalleScreenState extends State<PedidoDetalleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Normalizamos el rol a minúsculas para evitar errores (ej: "Motorizado" vs "motorizado")
     final String rolNormalizado = widget.miRolActual.toLowerCase();
 
     return Scaffold(
@@ -111,36 +107,31 @@ class _PedidoDetalleScreenState extends State<PedidoDetalleScreen> {
             if (_isLoading)
               const CircularProgressIndicator()
             else
-              // ⭐⭐ CAMBIO 3: Lógica condicional para mostrar botones
               Column(
                 children: [
-                  // CASO A: SI SOY MOTORIZADO
                   if (rolNormalizado == 'motorizado') ...[
                     ElevatedButton.icon(
                       icon: const Icon(Icons.person),
                       label: const Text('Chat con Cliente'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green, // Color distintivo
+                        backgroundColor: Colors.green, 
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
                       ),
-                      // Le decimos a la función que queremos hablar con el 'cliente'
                       onPressed: () => _abrirChat('cliente'),
                     ),
                     const SizedBox(height: 15),
                     ElevatedButton.icon(
                       icon: const Icon(Icons.support_agent),
-                      label: const Text('Chat con Asesor'), // Soporte
+                      label: const Text('Chat con Asesor'), 
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange, // Color distintivo
+                        backgroundColor: Colors.orange, 
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
                       ),
-                      // Le decimos a la función que queremos hablar con el 'asesor'
                       onPressed: () => _abrirChat('asesor'),
                     ),
                   ]
-                  // CASO B: SI SOY CLIENTE
                   else if (rolNormalizado == 'cliente') ...[
                      ElevatedButton.icon(
                       icon: const Icon(Icons.motorcycle),
@@ -152,9 +143,7 @@ class _PedidoDetalleScreenState extends State<PedidoDetalleScreen> {
                       ),
                       onPressed: () => _abrirChat('motorizado'),
                     ),
-                    // Si el cliente también necesita hablar con soporte, agregas otro botón aquí
                   ]
-                  // CASO C: CUALQUIER OTRO ROL
                   else ...[
                     const Text("Rol no definido para chats")
                   ]
