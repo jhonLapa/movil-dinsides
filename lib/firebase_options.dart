@@ -4,32 +4,16 @@ import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 
-/// Default [FirebaseOptions] for use with your Firebase apps.
-///
-/// Example:
-/// ```dart
-/// import 'firebase_options.dart';
-/// // ...
-/// await Firebase.initializeApp(
-///   options: DefaultFirebaseOptions.currentPlatform,
-/// );
-/// ```
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for ios - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return ios;
       case TargetPlatform.macOS:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for macos - '
@@ -52,11 +36,32 @@ class DefaultFirebaseOptions {
     }
   }
 
+  // CONFIGURACIÓN PARA ANDROID (Corregida con tu JSON)
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCZ2x53tH1QNHG12Bgxvdv3qHVh1zso8Bk',
-    appId: '1:298978320253:android:4d20008aaf7e45ef823614',
-    messagingSenderId: '298978320253',
-    projectId: 'courier-chat-demo',
-    storageBucket: 'courier-chat-demo.firebasestorage.app',
+    apiKey: 'AIzaSyAyPlWMbu9TR_5XJ2McxkrDe78Rb7ohTuo', 
+    appId: '1:177136918870:android:9efab5f0147804887c36f7', 
+    messagingSenderId: '177136918870',
+    projectId: 'dinsides-chat',
+    storageBucket: 'dinsides-chat.firebasestorage.app',
+  );
+
+  // CONFIGURACIÓN PARA IOS (Usando Web como fallback temporal)
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyDjWh0IF7Rz5UzylTU-0hpPtYNboy11Ejc',
+    appId: '1:177136918870:web:766994ddb2516b457c36f7', 
+    messagingSenderId: '177136918870',
+    projectId: 'dinsides-chat',
+    storageBucket: 'dinsides-chat.appspot.com',
+    iosBundleId: 'com.dinsides.chat', 
+  );
+
+  // CONFIGURACIÓN PARA WEB
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: "AIzaSyDjWh0IF7Rz5UzylTU-0hpPtYNboy11Ejc",
+    authDomain: "dinsides-chat.firebaseapp.com",
+    projectId: "dinsides-chat",
+    storageBucket: "dinsides-chat.appspot.com",
+    messagingSenderId: "177136918870",
+    appId: "1:177136918870:web:766994ddb2516b457c36f7",
   );
 }

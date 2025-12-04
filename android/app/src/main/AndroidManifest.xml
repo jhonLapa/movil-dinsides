@@ -1,28 +1,29 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application
-        android:label="courier_chat_app"
-        android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:label="Dinsides Chats"
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTask">
 
+            <!-- Lanzador de la app -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
 
+            <!-- Deep Link esquema carisacourier -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-
                 <data android:scheme="carisacourier" />
-
             </intent-filter>
+
         </activity>
 
         <meta-data

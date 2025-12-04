@@ -7,8 +7,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart'; 
 import 'chat_screen.dart';
 import 'chat_list_screen.dart'; 
+import 'package:shared_preferences/shared_preferences.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+// Observador para detectar cuando volvemos a la lista y recargarla
+final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -68,7 +71,7 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  void _processLink(Uri uri) {
+  void _processLink(Uri uri) async {
     if (uri.scheme == 'carisacourier' && uri.host == 'chat') {
       
       final String? idPedido = uri.queryParameters['id_pedido'];
@@ -76,17 +79,19 @@ class _MyAppState extends State<MyApp> {
       final String? miTipo = uri.queryParameters['mi_tipo']; 
       final String? rolObjetivo = uri.queryParameters['rol_objetivo'] ?? uri.queryParameters['target_role']; 
 
-      print("Procesando -> Pedido: $idPedido, Rol Objetivo: $rolObjetivo, Yo: $miId ($miTipo)");
-
       if (idPedido != null && miId != null && miTipo != null && rolObjetivo != null) {
+        
+        // GUARDAR SESIÓN LOCALMENTE
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('mi_id', miId);
+        await prefs.setString('mi_tipo', miTipo);
+
         _abrirChat(
           idPedido: idPedido,
           miId: miId,
           miTipo: miTipo,
           rolObjetivo: rolObjetivo,
         );
-      } else {
-        _showError("El enlace está incompleto. Faltan datos.");
       }
     }
   }
@@ -109,15 +114,22 @@ class _MyAppState extends State<MyApp> {
     );
 
     try {
-      // Construir URL
-      final urlString = 'http://10.0.2.2/dinsidescourier/buscar_o_crear_chat_por_pedido.php?id_pedido=$idPedido&target_role=$rolObjetivo&rol_objetivo=$rolObjetivo&mi_id=$miId&mi_tipo=$miTipo';
+      // Construir URL (Usando tu IP local)
+      final urlString =
+        'http://192.168.0.16/dinsidescourier/buscar_o_crear_chat_por_pedido.php'
+        '?id_pedido=$idPedido'
+        '&rol_objetivo=$rolObjetivo'
+        '&mi_id=$miId'
+        '&mi_tipo=$miTipo';
       print("Consultando API: $urlString");
       
       final url = Uri.parse(urlString);
       final response = await http.get(url).timeout(const Duration(seconds: 10));
 
       // Cerrar carga
-      navigatorKey.currentState?.pop(); 
+      if (navigatorKey.currentState?.canPop() == true) {
+         navigatorKey.currentState?.pop(); 
+      }
 
       if (response.statusCode == 200) {
         try {
@@ -138,19 +150,16 @@ class _MyAppState extends State<MyApp> {
                 ),
               );
             } else {
-              // 🛑 ERROR DEL PHP (LÓGICA DE NEGOCIO)
               _showError("El servidor rechazó la conexión:\n\n${jsonResponse['message']}");
             }
         } catch (e) {
-            // 🛑 ERROR DE FORMATO (PHP devolvió HTML o basura)
             print("Respuesta del servidor: ${response.body}");
-            _showError("Error al leer respuesta del servidor (Formato inválido).\n\nVerifica logs.");
+            _showError("Error al leer respuesta del servidor.");
         }
       } else {
         _showError("Error de conexión HTTP: ${response.statusCode}");
       }
     } catch (e) {
-      // Cerrar carga si sigue abierta
       if (navigatorKey.currentState?.canPop() == true) {
         navigatorKey.currentState?.pop();
       }
@@ -180,11 +189,25 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Courier App',
+      // 1. CAMBIO DE TÍTULO
+      title: 'Dinsides Chats',
+      
+      // 2. QUITAR ETIQUETA DEBUG
+      debugShowCheckedModeBanner: false,
+      
       navigatorKey: navigatorKey, 
+      
+      // 3. TEMA VISUAL AZUL (Forzado para que se vea bien en todas partes)
       theme: ThemeData(
         primarySwatch: Colors.blue,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.blue,
+          foregroundColor: Colors.white, // Texto e iconos blancos
+          elevation: 2,
+        ),
       ),
+      
+      navigatorObservers: [routeObserver],
       home: const ChatListScreen(), 
     );
   }
