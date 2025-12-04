@@ -8,13 +8,30 @@ import 'firebase_options.dart';
 import 'chat_screen.dart';
 import 'chat_list_screen.dart'; 
 
+import 'dart:io';  
+
+class MyHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return super.createHttpClient(context)
+      ..badCertificateCallback =
+          (X509Certificate cert, String host, int port) => true;
+  }
+}
+
+
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // **PERMITIR SSL INSEGURO SOLO PARA TEST**
+  HttpOverrides.global = MyHttpOverrides();
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
   runApp(const MyApp());
 }
 
@@ -110,11 +127,11 @@ class _MyAppState extends State<MyApp> {
 
     try {
       // Construir URL
-      final urlString = 'http://10.0.2.2/dinsidescourier/buscar_o_crear_chat_por_pedido.php?id_pedido=$idPedido&target_role=$rolObjetivo&rol_objetivo=$rolObjetivo&mi_id=$miId&mi_tipo=$miTipo';
+      final urlString = 'https://test.dinsidescourier.com/buscar_o_crear_chat_por_pedido.php?id_pedido=$idPedido&target_role=$rolObjetivo&rol_objetivo=$rolObjetivo&mi_id=$miId&mi_tipo=$miTipo';
       print("Consultando API: $urlString");
       
       final url = Uri.parse(urlString);
-      final response = await http.get(url).timeout(const Duration(seconds: 10));
+      final response = await http.get(url).timeout(const Duration(seconds: 60));
 
       // Cerrar carga
       navigatorKey.currentState?.pop(); 

@@ -53,10 +53,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
     try {
       // URL de tu servidor
-      final urlString = 'http://10.0.2.2/dinsidescourier/get_chat_info.php?id_conversacion=${widget.idConversacion}&mi_id=${widget.miId}&mi_tipo=${widget.miTipo}';
+      final urlString = 'https://test.dinsidescourier.com/get_chat_info.php?id_conversacion=${widget.idConversacion}&mi_id=${widget.miId}&mi_tipo=${widget.miTipo}';
       final url = Uri.parse(urlString);
       
-      final response = await http.get(url).timeout(const Duration(seconds: 10));
+      final response = await http.get(url).timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 200) {
         // Decodificamos la respuesta JSON

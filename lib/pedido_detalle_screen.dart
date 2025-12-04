@@ -38,10 +38,10 @@ class _PedidoDetalleScreenState extends State<PedidoDetalleScreen> {
       // ⭐⭐ CAMBIO 2: Enviamos 'rol_objetivo' a tu PHP para que sepa qué chat buscar
       // Si soy motorizado y pido 'cliente', el PHP debe buscar el chat del pedido entre motorizado y cliente.
       final url = Uri.parse(
-          'http://10.0.2.2/dinsidescourier/buscar_o_crear_chat_por_pedido.php?id_pedido=${widget.idPedido}&rol_objetivo=$rolObjetivo');
+          'https://test.dinsidescourier.com/buscar_o_crear_chat_por_pedido.php?id_pedido=${widget.idPedido}&rol_objetivo=$rolObjetivo');
 
       final response =
-          await http.get(url).timeout(const Duration(seconds: 10));
+          await http.get(url).timeout(const Duration(seconds: 60));
 
       if (mounted) Navigator.of(context, rootNavigator: true).pop();
 
