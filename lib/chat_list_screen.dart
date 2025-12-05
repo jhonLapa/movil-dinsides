@@ -65,7 +65,7 @@ class _ChatListScreenState extends State<ChatListScreen> with RouteAware {
     setState(() => _isLoading = true);
 
     try {
-      const String baseUrl = 'http://192.168.0.16/dinsidescourier/get_my_chats.php';
+      const String baseUrl = 'https://test.dinsidescourier.com/get_my_chats.php';
       final url = Uri.parse('$baseUrl?mi_id=$_miId&mi_tipo=$_miTipo');
 
       final response = await http.get(url).timeout(const Duration(seconds: 10));

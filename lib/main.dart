@@ -133,7 +133,7 @@ class _MyAppState extends State<MyApp> {
     try {
       // Construir URL
       final urlString =
-        'http://test.dinsidescourier/dinsidescourier/buscar_o_crear_chat_por_pedido.php'
+        'https://test.dinsidescourier.com/buscar_o_crear_chat_por_pedido.php'
         '?id_pedido=$idPedido'
         '&rol_objetivo=$rolObjetivo'
         '&mi_id=$miId'

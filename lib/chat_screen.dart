@@ -28,7 +28,8 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  late final String _chatCollectionPath = 'chats/${widget.idConversacion}/mensajes';
+  late final String _chatCollectionPath =
+      'chats/${widget.idConversacion}/mensajes';
 
   String? _miIdEnChat;
   String? _interlocutorNombre;
@@ -45,123 +46,161 @@ class _ChatScreenState extends State<ChatScreen> {
     _loadChatData();
   }
 
-  Future<void> _loadChatData() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  // ======================================
+  // 🔥 SUBIR IMAGEN A TU API PHP + R2
+  // ======================================
+  Future<String?> subirImagenAServidor(String pathLocal) async {
+    final url =
+        Uri.parse("https://test.dinsidescourier.com/api_subir_foto_chat.php");
+
+    var request = http.MultipartRequest("POST", url);
+    request.files.add(await http.MultipartFile.fromPath("foto", pathLocal));
 
     try {
-      // URL de tu servidor
-      final urlString = 'https://test.dinsidescourier.com/get_chat_info.php?id_conversacion=${widget.idConversacion}&mi_id=${widget.miId}&mi_tipo=${widget.miTipo}';
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      final data = jsonDecode(response.body);
+
+      if (data["success"] == true) {
+        return data["url"]; // URL de Cloudflare R2
+      } else {
+        print("Error servidor: ${data["message"]}");
+        return null;
+      }
+    } catch (e) {
+      print("Error al subir imagen: $e");
+      return null;
+    }
+  }
+
+  // ======================================
+  // 🔥 CARGAR INFO DEL CHAT
+  // ======================================
+  Future<void> _loadChatData() async {
+    try {
+      final urlString =
+          'https://test.dinsidescourier.com/get_chat_info.php?id_conversacion=${widget.idConversacion}&mi_id=${widget.miId}&mi_tipo=${widget.miTipo}';
 
       final url = Uri.parse(urlString);
-      
       final response = await http.get(url).timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 200) {
-        final Map<String, dynamic> jsonResponse = jsonDecode(response.body);
+        final jsonResponse = jsonDecode(response.body);
 
-        if (jsonResponse['success'] == true && jsonResponse['data'] != null) {
+        if (jsonResponse['success'] == true) {
           final data = jsonResponse['data'];
 
           setState(() {
-            _miIdEnChat = data['yo']['id']?.toString();
-            
-            _interlocutorId = data['interlocutor']['id']?.toString();
+            _miIdEnChat = data['yo']['id'].toString();
+            _interlocutorId = data['interlocutor']['id'].toString();
             _interlocutorNombre = data['interlocutor']['nombre'];
             _interlocutorFotoUrl = data['interlocutor']['foto_url'];
-            
-            _idPedidoContexto = data['id_pedido']?.toString(); 
+            _idPedidoContexto = data['id_pedido'].toString();
           });
 
           _marcarMensajesComoVistos();
-
-        } else {
-          throw Exception('API Error: ${jsonResponse['message']}');
         }
-      } else {
-        throw Exception('Error de red: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error al cargar datos del chat: $e');
-      setState(() {
-        _errorMessage = 'Error: $e';
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      _errorMessage = "Error cargando chat: $e";
     }
+
+    setState(() => _isLoading = false);
   }
 
+  // ======================================
+  // 🔥 MARCAR MENSAJES COMO VISTOS
+  // ======================================
   void _marcarMensajesComoVistos() async {
     if (_miIdEnChat == null) return;
 
-    try {
-      final snapshot = await _firestore.collection(_chatCollectionPath)
-          .where('receptorId', isEqualTo: _miIdEnChat)
-          .where('estado', isNotEqualTo: 'visto')
-          .get();
+    final snap = await _firestore
+        .collection(_chatCollectionPath)
+        .where('receptorId', isEqualTo: _miIdEnChat)
+        .where('estado', isNotEqualTo: 'visto')
+        .get();
 
-      final batch = _firestore.batch();
-      for (var doc in snapshot.docs) {
-        batch.update(doc.reference, {'estado': 'visto'});
-      }
-      await batch.commit();
-    } catch (e) {
-      print("Nota: Si sale error de índice, crea el índice en Firebase Console (Link en logs). Error: $e");
+    final batch = _firestore.batch();
+    for (var doc in snap.docs) {
+      batch.update(doc.reference, {'estado': 'visto'});
     }
+    await batch.commit();
   }
 
-  void _sendMessage({String? texto, String? localImagePath}) async {
-    final content = texto?.trim();
-    if ((content == null || content.isEmpty) && localImagePath == null) return;
+  // ======================================
+  // 🔥 ENVIAR MENSAJE TEXTO
+  // ======================================
+  Future<void> _sendTextMessage(String text) async {
+    if (text.trim().isEmpty || _miIdEnChat == null) return;
 
-    if (_miIdEnChat == null) {
-      print("Error: IDs no cargados.");
+    await _firestore.collection(_chatCollectionPath).add({
+      'emisorId': _miIdEnChat,
+      'receptorId': _interlocutorId,
+      'timestamp': FieldValue.serverTimestamp(),
+      'tipo': 'texto',
+      'contenido': text.trim(),
+      'estado': 'enviado',
+    });
+
+    _controller.clear();
+  }
+
+  // ======================================
+  // 🔥 ENVIAR IMAGEN
+  // ======================================
+  Future<void> _enviarImagen(String localPath) async {
+    final urlImagen = await subirImagenAServidor(localPath);
+
+    if (urlImagen == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Error subiendo imagen")),
+      );
       return;
     }
 
-    final nuevoMensaje = {
-      'emisorId': _miIdEnChat.toString(),
-      'receptorId': _interlocutorId.toString(),
+    await _firestore.collection(_chatCollectionPath).add({
+      'emisorId': _miIdEnChat,
+      'receptorId': _interlocutorId,
       'timestamp': FieldValue.serverTimestamp(),
-      'tipo': localImagePath != null ? 'imagen_local' : 'texto',
-      'contenido': localImagePath ?? content,
-      'estado': 'enviado', 
-    };
+      'tipo': 'imagen',
+      'contenido': urlImagen,
+      'estado': 'enviado',
+    });
+  }
 
-    try {
-      await _firestore.collection(_chatCollectionPath).add(nuevoMensaje);
-      _controller.clear();
-    } catch (e) {
-      print('Error al enviar mensaje: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error enviando mensaje: $e')),
-      );
+  // ======================================
+  // 🔥 SELECCIONAR IMAGEN
+  // ======================================
+  Future<void> _pickImage(ImageSource source) async {
+    final picker = ImagePicker();
+    final XFile? picked = await picker.pickImage(source: source);
+
+    if (picked != null) {
+      await _enviarImagen(picked.path);
     }
   }
 
-  void _showImageSourceActionSheet() {
+  void _showImageOptions() {
     showModalBottomSheet(
       context: context,
-      builder: (context) => SafeArea(
-        child: Wrap(
-          children: <Widget>[
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
             ListTile(
               leading: const Icon(Icons.photo_library),
-              title: const Text('Galería'),
+              title: const Text("Galería"),
               onTap: () {
-                Navigator.of(context).pop();
+                Navigator.pop(context);
                 _pickImage(ImageSource.gallery);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.photo_camera),
-              title: const Text('Cámara'),
+              leading: const Icon(Icons.camera_alt),
+              title: const Text("Cámara"),
               onTap: () {
-                Navigator.of(context).pop();
+                Navigator.pop(context);
                 _pickImage(ImageSource.camera);
               },
             ),
@@ -171,203 +210,118 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Future<void> _pickImage(ImageSource source) async {
-    final ImagePicker picker = ImagePicker();
-    try {
-      final XFile? pickedFile = await picker.pickImage(source: source);
-      if (pickedFile != null) {
-        _sendMessage(localImagePath: pickedFile.path);
-      }
-    } catch (e) {
-      print("Error al seleccionar imagen: $e");
-    }
-  }
-
-  Future<void> _eliminarHistorialChat() async {
-    final bool confirmar = await showDialog(
-      context: context,
-      builder: (BuildContext ctx) {
-        return AlertDialog(
-          title: const Text('Confirmar Eliminación'),
-          content: const Text('¿Estás seguro de que deseas eliminar todos los mensajes?'),
-          actions: [
-            TextButton(
-              child: const Text('Cancelar'),
-              onPressed: () => Navigator.of(ctx).pop(false),
-            ),
-            TextButton(
-              child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
-              onPressed: () => Navigator.of(ctx).pop(true),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmar != true) return;
-
-    try {
-      final QuerySnapshot snapshot = await _firestore.collection(_chatCollectionPath).get();
-      final WriteBatch batch = _firestore.batch();
-      for (final doc in snapshot.docs) {
-        batch.delete(doc.reference);
-      }
-      await batch.commit();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Historial eliminado.')));
-      }
-    } catch (e) {
-      print('Error al eliminar: $e');
-    }
-  }
-
+  // ======================================
+  // 🔥 UI COMPLETA
+  // ======================================
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Cargando...'), backgroundColor: Colors.blue),
+        appBar: AppBar(title: const Text("Cargando...")),
         body: const Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (_errorMessage != null || _interlocutorNombre == null) {
-      return Scaffold(
-        appBar: AppBar(backgroundColor: Colors.red, title: const Text('Error')),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text('Error: ${_errorMessage ?? "Datos incompletos."}'),
-              ElevatedButton(onPressed: _loadChatData, child: const Text('Reintentar'))
-            ],
-          ),
-        ),
       );
     }
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.blue,
-        iconTheme: const IconThemeData(color: Colors.white),
         title: Row(
           children: [
             CircleAvatar(
-              backgroundImage: NetworkImage(_interlocutorFotoUrl ?? 'https://i.imgur.com/d1h7XhI.png'),
-              radius: 20,
+              backgroundImage: NetworkImage(
+                _interlocutorFotoUrl ?? "https://i.imgur.com/d1h7XhI.png",
+              ),
             ),
             const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _interlocutorNombre!,
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (_idPedidoContexto != null)
-                    Text(
-                      'Pedido #$_idPedidoContexto',
-                      style: const TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                ],
-              ),
-            ),
+            Text(_interlocutorNombre ?? "Chat"),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_sweep_outlined, color: Colors.white),
-            onPressed: _eliminarHistorialChat,
-          ),
-        ],
       ),
       body: Column(
-        children: <Widget>[
+        children: [
           Expanded(
-            child: Container(
-              color: const Color(0xFFE5DDD5), 
-              child: StreamBuilder<QuerySnapshot>(
-                stream: _firestore
-                    .collection(_chatCollectionPath)
-                    .orderBy('timestamp', descending: true)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}'));
-                  if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _firestore
+                  .collection(_chatCollectionPath)
+                  .orderBy('timestamp', descending: true)
+                  .snapshots(),
+              builder: (_, snap) {
+                if (!snap.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-                  final messages = snapshot.data!.docs;
-                  return ListView.builder(
-                    reverse: true,
-                    itemCount: messages.length,
-                    itemBuilder: (context, index) {
-                      final message = messages[index];
-                      final data = message.data() as Map<String, dynamic>;
+                final mensajes = snap.data!.docs;
 
-                      final isMe = data['emisorId'].toString() == _miIdEnChat;
-                      
-                      return BubbleMessage(
-                        contenido: data['contenido'] ?? '',
-                        tipo: data['tipo'] ?? 'texto',
-                        isMe: isMe,
-                        time: (data['timestamp'] as Timestamp?)?.toDate(),
-                        // 🔥 Pasamos el estado al widget visual
-                        estado: data['estado'] ?? 'enviado', 
-                      );
-                    },
-                  );
-                },
+                return ListView.builder(
+                  reverse: true,
+                  itemCount: mensajes.length,
+                  itemBuilder: (_, i) {
+                    final msg =
+                        mensajes[i].data() as Map<String, dynamic>;
+
+                    return BubbleMessage(
+                      contenido: msg['contenido'],
+                      tipo: msg['tipo'],
+                      isMe: msg['emisorId'] == _miIdEnChat,
+                      time: (msg['timestamp'] as Timestamp?)?.toDate(),
+                      estado: msg['estado'] ?? 'enviado',
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+
+          _chatInput(),
+        ],
+      ),
+    );
+  }
+
+  Widget _chatInput() {
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.add, color: Colors.blue),
+            onPressed: _showImageOptions,
+          ),
+          Expanded(
+            child: TextField(
+              controller: _controller,
+              onSubmitted: _sendTextMessage,
+              decoration: InputDecoration(
+                hintText: "Escribe un mensaje",
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(25),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
           ),
-          // Input
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: <Widget>[
-                IconButton(
-                  icon: const Icon(Icons.add, color: Colors.blue),
-                  onPressed: _showImageSourceActionSheet,
-                ),
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    decoration: InputDecoration(
-                      hintText: 'Escribe un mensaje...',
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(25.0),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    ),
-                    onSubmitted: (text) => _sendMessage(texto: text),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                FloatingActionButton(
-                  onPressed: () => _sendMessage(texto: _controller.text),
-                  mini: true,
-                  backgroundColor: Colors.blue, // Botón Azul
-                  child: const Icon(Icons.send, color: Colors.white),
-                ),
-              ],
-            ),
-          ),
+          const SizedBox(width: 5),
+          FloatingActionButton(
+            mini: true,
+            onPressed: () => _sendTextMessage(_controller.text),
+            child: const Icon(Icons.send),
+          )
         ],
       ),
     );
   }
 }
 
+// ======================================
+// 🔥 WIDGET DE BURBUJA (CORREGIDO)
+// ======================================
 class BubbleMessage extends StatelessWidget {
   final String contenido;
   final String tipo;
   final bool isMe;
   final DateTime? time;
-  final String estado; 
+  final String estado;
 
   const BubbleMessage({
     super.key,
@@ -375,80 +329,61 @@ class BubbleMessage extends StatelessWidget {
     required this.tipo,
     required this.isMe,
     this.time,
-    this.estado = 'enviado', 
+    required this.estado,
   });
-
-  Widget _buildMessageContent(BuildContext context) {
-    if (tipo == 'imagen_local' || tipo == 'imagen') {
-      // Imagen
-      return Container(
-        constraints: const BoxConstraints(maxWidth: 250),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: tipo == 'imagen_local'
-              ? Image.file(File(contenido), fit: BoxFit.cover, errorBuilder: (_,__,___) => const Icon(Icons.broken_image))
-              : Image.network(
-                  contenido,
-                  loadingBuilder: (ctx, child, progress) => progress == null ? child : const Padding(padding: EdgeInsets.all(30), child: CircularProgressIndicator()),
-                  errorBuilder: (_,__,___) => const Icon(Icons.error),
-                ),
-        ),
-      );
-    } else {
-      // Texto normal
-      return Text(contenido, style: const TextStyle(fontSize: 16));
-    }
-  }
-
-  Widget _buildStatusIcon() {
-    if (!isMe) return const SizedBox.shrink(); 
-
-    IconData icon = Icons.done; 
-    Color color = Colors.grey;
-
-    if (estado == 'visto') {
-      icon = Icons.done_all; 
-      color = Colors.blue;   
-    } else if (estado == 'recibido') {
-      icon = Icons.done_all; 
-      color = Colors.grey;   
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(left: 4, top: 2),
-      child: Icon(icon, size: 16, color: color),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
-    final timeString = time == null ? '' : DateFormat('HH:mm').format(time!);
+    final tipoLimpio = tipo.trim().toLowerCase();
+    final esImagen =
+        tipoLimpio == "imagen" || tipoLimpio == "imagen_local";
 
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: isMe ? const Color(0xFFDCF8C6) : Colors.white, 
+          color: isMe ? Colors.green[100] : Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 1)],
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.end, 
-          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            _buildMessageContent(context),
-            const SizedBox(height: 4),
+            esImagen
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      contenido,
+                      width: 220,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                          const Icon(Icons.broken_image, size: 40),
+                    ),
+                  )
+                : Text(
+                    contenido,
+                    style: const TextStyle(fontSize: 16),
+                  ),
+
+            const SizedBox(height: 3),
+
             Row(
               mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Text(timeString, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
-                _buildStatusIcon(), 
+                Text(
+                  time != null ? DateFormat("HH:mm").format(time!) : "",
+                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                ),
+                const SizedBox(width: 4),
+                if (isMe)
+                  Icon(
+                    estado == "visto" ? Icons.done_all : Icons.done,
+                    size: 16,
+                    color: estado == "visto" ? Colors.blue : Colors.grey,
+                  ),
               ],
-            ),
+            )
           ],
         ),
       ),
