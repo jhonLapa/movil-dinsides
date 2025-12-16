@@ -51,5 +51,17 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Necesitamos tu ubicación para mostrarla en el mapa.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Necesitamos tu ubicación en segundo plano para compartir tu trayecto en tiempo real.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>El uso continuo del GPS en segundo plano es necesario para la función de envíos.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+    	<string>location</string>
+    	<string>fetch</string>
+	</array>
+
 </dict>
 </plist>
